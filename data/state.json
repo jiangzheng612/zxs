@@ -1,0 +1,116 @@
+{
+  "adminPassword": "910802",
+  "config": {
+    "systemTitle": "自习室座位预约系统",
+    "timeConfig": {
+      "openDay": 1,
+      "openHour": 8,
+      "openMinute": 0,
+      "closeDay": 6,
+      "closeHour": 8,
+      "closeMinute": 0,
+      "alwaysOpenForTesting": false
+    },
+    "lastWeeklyResetAt": "2026-09-08T11:05:16.066Z"
+  },
+  "blacklist": [
+    {
+      "name": "tom",
+      "addedAt": "2026-09-08T11:00:49.754Z",
+      "reason": "违规爽约/占用"
+    }
+  ],
+  "seats": [
+    {
+      "id": 1,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 2,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 3,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 4,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 5,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 6,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 7,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 8,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 9,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 10,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 11,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 12,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 13,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 14,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    },
+    {
+      "id": 15,
+      "isReserved": false,
+      "reservedBy": null,
+      "reservedAt": null
+    }
+  ],
+  "lastResetWeekKey": ""
+}

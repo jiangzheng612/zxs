@@ -1,0 +1,6 @@
+{
+  "name": "自习室座位预约系统",
+  "description": "15座自习室周次座位预约管理系统，支持多端实时抢座、黑名单管控、定时开放与自动清空及管理员后台配置。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
