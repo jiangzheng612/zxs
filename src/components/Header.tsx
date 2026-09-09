@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{systemTitle || "自习室座位预约系统"}</span>
             </h1>
             <p className="text-xs text-stone-700 hidden sm:block">
-              15席自习空间 · 实时在线选座预约
+              16席自习空间 · 实时在线选座预约
             </p>
           </div>
         </div>

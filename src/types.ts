@@ -1,7 +1,9 @@
 export interface Seat {
-  id: number;           // 1 to 15
+  id: number;           // 1 to 16
   isReserved: boolean;
   reservedBy: string | null;      // Student name
+  phone?: string | null;          // 11-digit phone number
+  researchGroup?: string | null;  // Research group (max 7 Chinese characters)
   reservedAt: string | null;      // ISO string or formatted time
   ip?: string;                    // Client IP for logging
 }

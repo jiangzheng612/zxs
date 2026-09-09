@@ -26,10 +26,12 @@ interface ServerState {
 
 // Default initial state
 function getInitialSeats(): Seat[] {
-  return Array.from({ length: 15 }, (_, i) => ({
+  return Array.from({ length: 16 }, (_, i) => ({
     id: i + 1,
     isReserved: false,
     reservedBy: null,
+    phone: null,
+    researchGroup: null,
     reservedAt: null,
   }));
 }
@@ -121,9 +123,22 @@ function loadState() {
             }
           }
         };
-        // Guarantee 15 seats exist
-        if (!state.seats || state.seats.length !== 15) {
+        // Guarantee 16 seats exist
+        if (!state.seats || !Array.isArray(state.seats)) {
           state.seats = getInitialSeats();
+        } else if (state.seats.length < 16) {
+          for (let i = state.seats.length + 1; i <= 16; i++) {
+            state.seats.push({
+              id: i,
+              isReserved: false,
+              reservedBy: null,
+              phone: null,
+              researchGroup: null,
+              reservedAt: null,
+            });
+          }
+        } else if (state.seats.length > 16) {
+          state.seats = state.seats.slice(0, 16);
         }
       }
     }
@@ -276,6 +291,42 @@ function validateStudentName(name: string): { valid: boolean; error?: string; cl
   return { valid: true, cleanedName: trimmed };
 }
 
+// Validate student phone number: must be exactly 11 digits
+function validatePhone(phone: string): { valid: boolean; error?: string; cleanedPhone: string } {
+  const trimmed = String(phone || "").trim();
+  if (!trimmed) {
+    return { valid: false, error: "请输入预约人联系电话", cleanedPhone: "" };
+  }
+
+  if (!/^\d{11}$/.test(trimmed)) {
+    return {
+      valid: false,
+      error: "联系电话格式不正确：必须填写11位数字（例如 13800138000）",
+      cleanedPhone: trimmed,
+    };
+  }
+
+  return { valid: true, cleanedPhone: trimmed };
+}
+
+// Validate student research group: max 7 Chinese characters
+function validateResearchGroup(group: string): { valid: boolean; error?: string; cleanedGroup: string } {
+  const trimmed = String(group || "").trim();
+  if (!trimmed) {
+    return { valid: false, error: "请输入来自的课题组名称", cleanedGroup: "" };
+  }
+
+  if (!/^[\u4e00-\u9fa5]{1,7}$/.test(trimmed)) {
+    return {
+      valid: false,
+      error: "课题组格式不正确：最多填写7个汉字，且不能包含数字、英文或符号",
+      cleanedGroup: trimmed,
+    };
+  }
+
+  return { valid: true, cleanedGroup: trimmed };
+}
+
 // --- API ROUTES ---
 
 // Health check
@@ -347,7 +398,7 @@ app.get("/api/status", (_req: Request, res: Response) => {
     nextResetTimeStr: closeStr,
     currentTimeStr: bj.isoBeijing,
     currentTimeFormatted: bj.formattedStr,
-    totalSeats: 15,
+    totalSeats: 16,
     availableSeats,
     blacklistedCount: state.blacklist.length,
   });
@@ -394,7 +445,7 @@ app.get("/api/check-name", (req: Request, res: Response) => {
 
 // Reservation endpoint (抢座核心接口，支持多IP高并发与原子冲突检测)
 app.post("/api/reserve", (req: Request, res: Response) => {
-  const { seatId, name } = req.body;
+  const { seatId, name, phone, researchGroup } = req.body;
   const clientIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "未知IP";
 
   // 1. Check if reservation is currently open
@@ -408,20 +459,34 @@ app.post("/api/reserve", (req: Request, res: Response) => {
     });
   }
 
-  // 2. Validate seatId
+  // 2. Validate seatId (1 to 16)
   const seatNumber = Number(seatId);
-  if (!seatNumber || seatNumber < 1 || seatNumber > 15) {
-    return res.json({ success: false, error: "座位号无效，必须为 1 至 15 号座位" });
+  if (!seatNumber || seatNumber < 1 || seatNumber > 16) {
+    return res.json({ success: false, error: "座位号无效，必须为 1 至 16 号座位" });
   }
 
-  // 3. Validate student name
+  // 3. Validate student name (真实姓名)
   const nameValidation = validateStudentName(name);
   if (!nameValidation.valid) {
     return res.json({ success: false, error: nameValidation.error });
   }
   const cleanName = nameValidation.cleanedName;
 
-  // 4. Check Blacklist:
+  // 4. Validate phone number (联系电话：11位数字)
+  const phoneValidation = validatePhone(phone);
+  if (!phoneValidation.valid) {
+    return res.json({ success: false, error: phoneValidation.error });
+  }
+  const cleanPhone = phoneValidation.cleanedPhone;
+
+  // 5. Validate research group (所属课题组：最多7个汉字)
+  const groupValidation = validateResearchGroup(researchGroup);
+  if (!groupValidation.valid) {
+    return res.json({ success: false, error: groupValidation.error });
+  }
+  const cleanGroup = groupValidation.cleanedGroup;
+
+  // 6. Check Blacklist:
   // "在列表中的名字无法选择座位后输入，如果输入可提示该同学已加入黑名单，如有疑问请联系管理员。"
   const isBlacklisted = state.blacklist.some(
     (item) => item.name.toLowerCase() === cleanName.toLowerCase()
@@ -434,7 +499,7 @@ app.post("/api/reserve", (req: Request, res: Response) => {
     });
   }
 
-  // 5. Check if the same student name has already reserved another seat
+  // 7. Check if the same student name has already reserved another seat
   // "同一个名字只能选中一个座位，英文不区分大小写"
   const existingReservation = state.seats.find(
     (s) => s.isReserved && s.reservedBy && s.reservedBy.toLowerCase() === cleanName.toLowerCase()
@@ -446,7 +511,7 @@ app.post("/api/reserve", (req: Request, res: Response) => {
     });
   }
 
-  // 6. Check if target seat is already occupied (抢座并发保护)
+  // 8. Check if target seat is already occupied (抢座并发保护)
   const targetSeat = state.seats.find((s) => s.id === seatNumber);
   if (!targetSeat) {
     return res.json({ success: false, error: "未找到该座位" });
@@ -458,9 +523,11 @@ app.post("/api/reserve", (req: Request, res: Response) => {
     });
   }
 
-  // 7. Atomic reservation success
+  // 9. Atomic reservation success
   targetSeat.isReserved = true;
   targetSeat.reservedBy = cleanName;
+  targetSeat.phone = cleanPhone;
+  targetSeat.researchGroup = cleanGroup;
   targetSeat.reservedAt = new Date().toISOString();
   targetSeat.ip = clientIp;
 
@@ -586,7 +653,7 @@ app.post("/api/admin/clear-all", requireAdminAuth, (_req: Request, res: Response
 
   res.json({
     success: true,
-    message: "已成功清空所有 15 个座位的预约记录！",
+    message: "已成功清空所有 16 个座位的预约记录！",
     seats: state.seats,
   });
 });
@@ -602,6 +669,8 @@ app.post("/api/admin/cancel-seat", requireAdminAuth, (req: Request, res: Respons
   const prevStudent = targetSeat.reservedBy;
   targetSeat.isReserved = false;
   targetSeat.reservedBy = null;
+  targetSeat.phone = null;
+  targetSeat.researchGroup = null;
   targetSeat.reservedAt = null;
   targetSeat.ip = undefined;
 
@@ -653,6 +722,8 @@ app.post("/api/admin/blacklist/add", requireAdminAuth, (req: Request, res: Respo
   if (heldSeat) {
     heldSeat.isReserved = false;
     heldSeat.reservedBy = null;
+    heldSeat.phone = null;
+    heldSeat.researchGroup = null;
     heldSeat.reservedAt = null;
     heldSeat.ip = undefined;
     releasedSeatMsg = `，同时已自动撤销其占用的 ${heldSeat.id} 号座位`;

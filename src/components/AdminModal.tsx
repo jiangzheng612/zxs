@@ -15,6 +15,10 @@ import {
   Armchair,
   Sparkles,
   Clock,
+  Download,
+  Phone,
+  Building2,
+  User,
 } from "lucide-react";
 import { AppConfig, BlacklistItem, Seat, TimeConstraintConfig } from "../types";
 
@@ -292,12 +296,62 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       if (res.ok) {
         onSeatsUpdated(data.seats);
         setShowClearConfirm(false);
-        setSaveSuccessMsg("所有 15 个座位的预约记录已手动重置清空！");
+        setSaveSuccessMsg("所有 16 个座位的预约记录已手动重置清空！");
         setTimeout(() => setSaveSuccessMsg(null), 4000);
       }
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // Export current reservation list as Excel/CSV table
+  const handleExportReservations = () => {
+    const headers = [
+      "座位号",
+      "预约状态",
+      "预约人真实姓名",
+      "预约人电话",
+      "来自课题组",
+      "预约锁定时间",
+      "客户端IP",
+    ];
+
+    const rows = seats.map((seat) => {
+      const statusStr = seat.isReserved ? "已预约" : "空闲";
+      const nameStr = seat.reservedBy || "--";
+      const phoneStr = seat.phone ? `\t${seat.phone}` : "--";
+      const groupStr = seat.researchGroup || "--";
+      const timeStr = seat.reservedAt
+        ? new Date(seat.reservedAt).toLocaleString("zh-CN", { hour12: false })
+        : "--";
+      const ipStr = seat.ip || "--";
+
+      const escapeCsv = (str: string) => `"${String(str).replace(/"/g, '""')}"`;
+      return [
+        escapeCsv(`${seat.id}号座`),
+        escapeCsv(statusStr),
+        escapeCsv(nameStr),
+        escapeCsv(phoneStr),
+        escapeCsv(groupStr),
+        escapeCsv(timeStr),
+        escapeCsv(ipStr),
+      ].join(",");
+    });
+
+    // Add \uFEFF BOM for correct UTF-8 display in Microsoft Excel
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `自习室座位预约明细表_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSaveSuccessMsg("现有 16 个座位预约信息已成功导出为表格文件！");
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
   const handleCancelSeat = async (seatId: number) => {
@@ -879,12 +933,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <span>手动清空所有预约信息</span>
                       </h4>
                       <p className="text-xs text-rose-700 mt-0.5">
-                        按要求提供一键重置功能，可立即清空全部 15 个座位的占用数据并通知所有访客。
+                        按要求提供一键重置功能，可立即清空全部 16 个座位的占用数据并通知所有访客。
                       </p>
                     </div>
 
                     {!showClearConfirm ? (
                       <button
+                        type="button"
                         id="manual-clear-all-reservations-btn"
                         onClick={() => setShowClearConfirm(true)}
                         className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all whitespace-nowrap"
@@ -894,12 +949,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     ) : (
                       <div className="flex items-center space-x-2">
                         <button
+                          type="button"
                           onClick={() => setShowClearConfirm(false)}
                           className="px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg text-xs"
                         >
                           取消
                         </button>
                         <button
+                          type="button"
                           id="confirm-manual-clear-btn"
                           onClick={handleClearAllReservations}
                           className="px-3.5 py-1.5 bg-rose-700 text-white rounded-lg text-xs font-bold hover:bg-rose-800 shadow-xs"
@@ -910,47 +967,86 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     )}
                   </div>
 
-                  {/* Seats Real-time Table */}
+                  {/* Seats Real-time Table with Export Button */}
                   <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-2xs">
-                    <div className="p-3 bg-stone-50 border-b border-stone-200 text-xs font-semibold text-stone-700">
-                      当前 15 个座位状态全览
+                    <div className="p-3.5 bg-stone-50 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-stone-800">
+                          当前 16 个座位监控明细
+                        </span>
+                        <span className="text-[11px] text-stone-500 bg-white px-2 py-0.5 rounded-full border border-stone-200">
+                          已预约: {seats.filter((s) => s.isReserved).length} / 16 · 空闲: {seats.filter((s) => !s.isReserved).length}
+                        </span>
+                      </div>
+
+                      {/* Export Button requested by user */}
+                      <button
+                        type="button"
+                        id="export-reservations-btn"
+                        onClick={handleExportReservations}
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-amber-950 bg-amber-100/80 hover:bg-amber-200/80 border border-amber-300 transition-colors shadow-2xs active:scale-98"
+                      >
+                        <Download className="w-3.5 h-3.5 text-amber-700" />
+                        <span>导出预约列表 (CSV/Excel)</span>
+                      </button>
                     </div>
 
-                    <div className="divide-y divide-stone-100 max-h-80 overflow-y-auto">
+                    <div className="divide-y divide-stone-100 max-h-96 overflow-y-auto">
                       {seats.map((seat) => (
                         <div
                           key={seat.id}
-                          className="p-3 flex items-center justify-between hover:bg-stone-50 transition-colors text-xs"
+                          className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-stone-50/80 transition-colors text-xs gap-2.5"
                         >
-                          <div className="flex items-center space-x-3">
-                            <span className="font-mono font-bold text-stone-800 bg-stone-100 px-2 py-1 rounded">
+                          <div className="flex items-start sm:items-center space-x-3 flex-1 flex-wrap gap-y-1">
+                            <span className="font-mono font-bold text-stone-800 bg-stone-100 px-2 py-1 rounded text-xs shrink-0">
                               {String(seat.id).padStart(2, "0")} 号座
                             </span>
+
                             {seat.isReserved ? (
-                              <div className="flex items-center space-x-2">
-                                <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                  <Lock className="w-3 h-3" />
-                                  <span>已占用: {seat.reservedBy}</span>
+                              <div className="flex items-center flex-wrap gap-2">
+                                {/* Name */}
+                                <span className="inline-flex items-center gap-1 font-bold text-stone-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                  <User className="w-3 h-3 text-amber-700" />
+                                  <span>{seat.reservedBy}</span>
                                 </span>
+
+                                {/* Phone */}
+                                {seat.phone && (
+                                  <span className="inline-flex items-center gap-1 text-stone-700 font-mono bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                                    <Phone className="w-3 h-3 text-stone-500" />
+                                    <span>{seat.phone}</span>
+                                  </span>
+                                )}
+
+                                {/* Research Group */}
+                                {seat.researchGroup && (
+                                  <span className="inline-flex items-center gap-1 text-stone-700 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                                    <Building2 className="w-3 h-3 text-stone-500" />
+                                    <span>{seat.researchGroup}</span>
+                                  </span>
+                                )}
+
+                                {/* Time */}
                                 {seat.reservedAt && (
-                                  <span className="text-stone-700 text-[11px]">
+                                  <span className="text-stone-700 text-[11px] font-mono">
                                     {new Date(seat.reservedAt).toLocaleTimeString("zh-CN", {
                                       hour12: false,
-                                    })}
+                                    })} 锁定
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                空闲
+                              <span className="text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                空闲可预约
                               </span>
                             )}
                           </div>
 
                           {seat.isReserved && (
                             <button
+                              type="button"
                               onClick={() => handleCancelSeat(seat.id)}
-                              className="text-stone-700 hover:text-rose-600 text-xs px-2 py-1 rounded hover:bg-stone-100"
+                              className="self-end sm:self-center text-stone-700 hover:text-rose-600 text-xs px-2.5 py-1 rounded-md border border-transparent hover:border-rose-200 hover:bg-rose-50 transition-colors"
                             >
                               撤销预约
                             </button>

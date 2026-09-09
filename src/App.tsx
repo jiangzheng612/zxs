@@ -8,10 +8,12 @@ import { AdminModal } from "./components/AdminModal";
 import { Seat, AppConfig, SystemStatusResponse } from "./types";
 import { ShieldAlert, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 
-const initialSeats: Seat[] = Array.from({ length: 15 }, (_, i) => ({
+const initialSeats: Seat[] = Array.from({ length: 16 }, (_, i) => ({
   id: i + 1,
   isReserved: false,
   reservedBy: null,
+  phone: null,
+  researchGroup: null,
   reservedAt: null,
 }));
 
@@ -36,8 +38,8 @@ export default function App() {
   const [nextOpenTimeStr, setNextOpenTimeStr] = useState<string>("周一 08:00");
   const [nextResetTimeStr, setNextResetTimeStr] = useState<string>("周六 08:00");
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState<string>("");
-  const [totalSeats, setTotalSeats] = useState<number>(15);
-  const [availableSeats, setAvailableSeats] = useState<number>(15);
+  const [totalSeats, setTotalSeats] = useState<number>(16);
+  const [availableSeats, setAvailableSeats] = useState<number>(16);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Active modal states
@@ -180,13 +182,15 @@ export default function App() {
   // Submit reservation
   const handleReserve = async (
     seatId: number,
-    name: string
+    name: string,
+    phone: string,
+    researchGroup: string
   ): Promise<{ success: boolean; error?: string; isBlacklisted?: boolean }> => {
     try {
       const res = await fetch("/api/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seatId, name }),
+        body: JSON.stringify({ seatId, name, phone, researchGroup }),
       });
 
       let data: any = null;
